@@ -57,6 +57,7 @@ java_library_static {
         "vendor.lineage.biometrics.fingerprint.inscreen-V1.0-java",
         "vendor.goodix.extend.service-V2.0-java",
         "vendor.samsung.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.oppo.hardware.biometrics.fingerprint-V2.1-java",
         "vendor.xiaomi.hardware.fingerprintextension-V1.0-java",
     ],
 }
