@@ -59,6 +59,7 @@ java_library_static {
         "vendor.samsung.hardware.biometrics.fingerprint-V2.1-java",
         "vendor.oppo.hardware.biometrics.fingerprint-V2.1-java",
         "vendor.xiaomi.hardware.fingerprintextension-V1.0-java",
+        "faceunlock_utils",
     ],
 }
 
