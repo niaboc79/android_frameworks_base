@@ -21,6 +21,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.PowerManager;
+import android.os.SystemProperties;
 import android.os.Trace;
 import android.provider.Settings;
 import android.util.Slog;
@@ -71,6 +72,7 @@ public class LightsService extends SystemService {
                             ": brightness=0x" + Integer.toHexString(brightness));
                     return;
                 }
+
                 // Ideally, we'd like to set the brightness mode through the SF/HWC as well, but
                 // right now we just fall back to the old path through Lights brightessMode is
                 // anything but USER or the device shouldBeInLowPersistenceMode().
@@ -86,11 +88,56 @@ public class LightsService extends SystemService {
                     }
                     SurfaceControl.setDisplayBrightness(mDisplayToken,
                             (float) brightness / mSurfaceControlMaximumBrightness);
-                } else {
-                    int color = brightness & 0x000000ff;
-                    color = 0xff000000 | (color << 16) | (color << 8) | color;
-                    setLightLocked(color, LIGHT_FLASH_NONE, 0, 0, brightnessMode);
+		    return;
                 }
+
+                if(mId == 0) {
+                    String fp = SystemProperties.get("ro.vendor.build.fingerprint", "hello");
+                    if(fp.matches(".*astarqlte.*")) {
+                        int newBrightness = brightness;
+                        if(SystemProperties.getBoolean("persist.sys.samsung.full_brightness", false)) {
+                            newBrightness = (int) (brightness * 365.0 / 255.0);
+                        }
+                        setLightLocked(newBrightness, LIGHT_FLASH_HARDWARE, 0, 0, brightnessMode);
+                        return;
+                    }
+
+                    int useSamsungBacklight = SystemProperties.getInt("persist.sys.phh.samsung_backlight", -1);
+                    if(useSamsungBacklight != 0) {
+                        if(useSamsungBacklight > 0 ||
+                                       fp.matches(".*beyond.*lte.*") ||
+                                       fp.matches(".*(crown|star)[q2]*lte.*") ||
+                                       fp.matches(".*(SC-0[23]K|SCV3[89]).*")) {
+                           int ratio = 100;
+                           if(useSamsungBacklight > 1)
+                                   ratio = useSamsungBacklight;
+                           int newBrightness = brightness * ratio;
+                           if(SystemProperties.getBoolean("persist.sys.samsung.full_brightness", false)) {
+                               newBrightness = (int) (brightness * 40960.0 / 255.0);
+                           }
+                            setLightLocked(newBrightness, LIGHT_FLASH_HARDWARE, 0, 0, brightnessMode);
+                            return;
+                        }
+                    }
+
+                    boolean qcomExtendBrightness = SystemProperties.getBoolean("persist.extend.brightness", false);
+                    int scale = SystemProperties.getInt("persist.display.max_brightness", 1023);
+                    //This is set by vndk-detect
+                    int qcomScale = SystemProperties.getInt("persist.sys.qcom-brightness", -1);
+                    if(qcomScale != -1) {
+                        qcomExtendBrightness = true;
+                        scale = qcomScale;
+                    }
+
+                    if(qcomExtendBrightness) {
+                        setLightLocked(brightness * scale / 255, LIGHT_FLASH_NONE, 0, 0, brightnessMode);
+                        return;
+                    }
+                }
+
+                int color = brightness & 0x000000ff;
+                color = 0xff000000 | (color << 16) | (color << 8) | color;
+                setLightLocked(color, LIGHT_FLASH_NONE, 0, 0, brightnessMode);
             }
         }
 

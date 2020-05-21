@@ -328,6 +328,7 @@ public abstract class BiometricServiceBase extends SystemService
         private List<? extends BiometricAuthenticator.Identifier> mEnrolledList;
         // List of templates to remove from the HAL
         private List<BiometricAuthenticator.Identifier> mUnknownHALTemplates = new ArrayList<>();
+        final boolean mNocleanup = android.os.SystemProperties.getBoolean("persist.sys.phh.fingerprint.nocleanup", false);
 
         InternalEnumerateClient(Context context,
                 DaemonWrapper daemon, long halDeviceId, IBinder token,
@@ -372,9 +373,11 @@ public abstract class BiometricServiceBase extends SystemService
                 BiometricAuthenticator.Identifier identifier = mEnrolledList.get(i);
                 Slog.e(getTag(), "doTemplateCleanup(): Removing dangling template from framework: "
                         + identifier.getBiometricId() + " "
-                        + identifier.getName());
-                mUtils.removeBiometricForUser(getContext(),
-                        getTargetUserId(), identifier.getBiometricId());
+                        + identifier.getName() + " /// " + mNocleanup);
+                if(!mNocleanup) {
+                    mUtils.removeBiometricForUser(getContext(),
+                            getTargetUserId(), identifier.getBiometricId());
+                }
                 StatsLog.write(StatsLog.BIOMETRIC_SYSTEM_HEALTH_ISSUE_DETECTED,
                         statsModality(),
                         BiometricsProtoEnums.ISSUE_UNKNOWN_TEMPLATE_ENROLLED_FRAMEWORK);
@@ -657,11 +660,17 @@ public abstract class BiometricServiceBase extends SystemService
         mPowerManager = mContext.getSystemService(PowerManager.class);
         mUserManager = UserManager.get(mContext);
         mMetricsLogger = new MetricsLogger();
-        mNotifyClient = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_notifyClientOnFingerprintCancelSuccess);
-        mCleanupUnusedFingerprints = mContext.getResources().getBoolean(
+        mCleanupUnusedFingerprints =
+                statsModality() == BiometricsProtoEnums.MODALITY_FINGERPRINT &&
+                mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_cleanupUnusedFingerprints);
-        mPostResetRunnableForAllClients = mContext.getResources().getBoolean(
+        mNotifyClient =
+                statsModality() == BiometricsProtoEnums.MODALITY_FINGERPRINT &&
+                mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_notifyClientOnFingerprintCancelSuccess);
+        mPostResetRunnableForAllClients =
+                statsModality() == BiometricsProtoEnums.MODALITY_FINGERPRINT &&
+                mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_fingerprintPostResetRunnableForAllClients);
     }
 
@@ -796,6 +805,7 @@ public abstract class BiometricServiceBase extends SystemService
     protected void handleEnumerate(BiometricAuthenticator.Identifier identifier, int remaining) {
         ClientMonitor client = getCurrentClient();
 
+        if(client == null) return;
         client.onEnumerationResult(identifier, remaining);
 
         // All templates in the HAL for this user were enumerated

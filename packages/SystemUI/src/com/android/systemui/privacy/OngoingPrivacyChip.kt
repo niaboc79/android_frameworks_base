@@ -71,8 +71,8 @@ class OngoingPrivacyChip @JvmOverloads constructor(
     private fun updateView() {
         val networkTraffic = Settings.System.getInt(context.getContentResolver(),
                 Settings.System.NETWORK_TRAFFIC_LOCATION, 0);
-        back.background = if (expanded && (networkTraffic != 2)) backgroundDrawable else null
-        val padding = if (expanded && (networkTraffic != 2)) sidePadding else 0
+        back.background = if (expanded && networkTraffic == 0) backgroundDrawable else null
+        val padding = if (expanded && networkTraffic == 0) sidePadding else 0
         back.setPaddingRelative(padding, 0, padding, 0)
         fun setIcons(dialogBuilder: PrivacyDialogBuilder, iconsContainer: ViewGroup) {
             iconsContainer.removeAllViews()
@@ -86,7 +86,7 @@ class OngoingPrivacyChip @JvmOverloads constructor(
                 iconsContainer.addView(image, iconSize, iconSize)
                 if (i != 0) {
                     val lp = image.layoutParams as MarginLayoutParams
-                    lp.marginStart = if (expanded && (networkTraffic != 2)) iconMarginExpanded else iconMarginCollapsed
+                    lp.marginStart = if (expanded && networkTraffic == 0) iconMarginExpanded else iconMarginCollapsed
                     image.layoutParams = lp
                 }
             }
@@ -97,7 +97,7 @@ class OngoingPrivacyChip @JvmOverloads constructor(
             setIcons(builder, iconsContainer)
             val lp = iconsContainer.layoutParams as FrameLayout.LayoutParams
             lp.gravity = Gravity.CENTER_VERTICAL or
-                    (if (expanded && (networkTraffic != 2)) Gravity.CENTER_HORIZONTAL else Gravity.END)
+                    (if (expanded && networkTraffic == 0) Gravity.CENTER_HORIZONTAL else Gravity.END)
             iconsContainer.layoutParams = lp
         } else {
             iconsContainer.removeAllViews()

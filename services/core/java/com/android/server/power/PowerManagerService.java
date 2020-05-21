@@ -227,6 +227,12 @@ public final class PowerManagerService extends SystemService
     // property for last reboot reason
     private static final String REBOOT_PROPERTY = "sys.boot.reason";
 
+    // Add button light timeout
+    private static final int BUTTON_ON_DURATION = 5 * 1000;
+
+    // File location for last reboot reason
+    private static final String LAST_REBOOT_LOCATION = "/data/misc/reboot/last_reboot_reason";
+
     private final Context mContext;
     private final ServiceThread mHandlerThread;
     private final PowerManagerHandler mHandler;
@@ -252,6 +258,8 @@ public final class PowerManagerService extends SystemService
     private SettingsObserver mSettingsObserver;
     private DreamManagerInternal mDreamManager;
     private Light mAttentionLight;
+    private Light mButtonsLight;
+    private static final boolean mDisableButtonsLight = android.os.SystemProperties.getBoolean("persist.sys.phh.disable_buttons_light", false);
 
     private final Object mLock = LockGuard.installNewLock(LockGuard.INDEX_POWER);
 
@@ -895,6 +903,7 @@ public final class PowerManagerService extends SystemService
 
             mLightsManager = getLocalService(LightsManager.class);
             mAttentionLight = mLightsManager.getLight(LightsManager.LIGHT_ID_ATTENTION);
+            mButtonsLight = mLightsManager.getLight(LightsManager.LIGHT_ID_BUTTONS);
 
             // Initialize display power management.
             mDisplayManagerInternal.initPowerManagement(
@@ -2207,13 +2216,22 @@ public final class PowerManagerService extends SystemService
                 final long screenOffTimeout = getScreenOffTimeoutLocked(sleepTimeout);
                 final long screenDimDuration = getScreenDimDurationLocked(screenOffTimeout);
                 final boolean userInactiveOverride = mUserInactiveOverrideFromWindowManager;
+                final int screenBrightness = mScreenBrightnessSettingDefault;
                 final long nextProfileTimeout = getNextProfileTimeoutLocked(now);
 
                 mUserActivitySummary = 0;
-                if (mLastUserActivityTime >= mLastWakeTime) {
+                if (mWakefulness == WAKEFULNESS_AWAKE && mLastUserActivityTime >= mLastWakeTime) {
                     nextTimeout = mLastUserActivityTime
                             + screenOffTimeout - screenDimDuration;
                     if (now < nextTimeout) {
+                        if (now > mLastUserActivityTime + BUTTON_ON_DURATION) {
+                            if(!mDisableButtonsLight)
+                                mButtonsLight.setBrightness(0);
+                        } else {
+                            if(!mDisableButtonsLight)
+                                mButtonsLight.setBrightness(screenBrightness);
+                            nextTimeout = now + BUTTON_ON_DURATION;
+                        }
                             if (mButtonTimeoutEnabled && (userActivityValue || settingsValue)){
                                 final boolean buttonPressed = mEvent == PowerManager.USER_ACTIVITY_EVENT_BUTTON;
                                 if (mButtonBacklightOnTouchOnly) {

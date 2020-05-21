@@ -181,7 +181,7 @@
     </string-array>
 
     <!-- Whether or not we should show vendor mismatch message -->
-    <bool name="config_show_vendor_mismatch_message">true</bool>
+    <bool name="config_show_vendor_mismatch_message">false</bool>
 
     <!-- Whether to show HD icon in the status bar for volte -->
     <bool name="config_display_hd_volte">false</bool>
@@ -275,5 +275,17 @@
     <!-- Button brightness -->
     <bool name="config_button_brightness_support">false</bool>
     <integer name="config_button_brightness_default">128</integer>
+
+    <!-- Whether device has a notch -->
+    <bool name="config_haveNotch">false</bool>
+
+    <!-- Name of a font family to use as light font. For theming purpose. -->
+    <string name="config_lightFontFamily" translatable="false">sans-serif-light</string>
+
+    <!-- Name of a font family to use as regular font. For theming purpose. -->
+    <string name="config_regularFontFamily" translatable="false">sans-serif-regular</string>
+
+    <!-- Enable face auth when swiping security view -->
+    <bool name="config_faceAuthOnSecurityView">false</bool>
 
 </resources>

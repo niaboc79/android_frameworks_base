@@ -21,6 +21,7 @@
 #include <android/hardware/power/1.1/IPower.h>
 #include <android/system/suspend/1.0/ISystemSuspend.h>
 #include <android/system/suspend/ISuspendControlService.h>
+#include <vendor/samsung/hardware/miscpower/2.0/ISehMiscPower.h>
 #include <nativehelper/JNIHelp.h>
 #include <vendor/lineage/power/1.0/ILineagePower.h>
 #include "jni.h"
@@ -57,6 +58,7 @@ using IPowerV1_1 = android::hardware::power::V1_1::IPower;
 using IPowerV1_0 = android::hardware::power::V1_0::IPower;
 using ILineagePowerV1_0 = vendor::lineage::power::V1_0::ILineagePower;
 using vendor::lineage::power::V1_0::LineageFeature;
+using ISehMiscPower = vendor::samsung::hardware::miscpower::V2_0::ISehMiscPower;
 
 namespace android {
 
@@ -73,6 +75,7 @@ static jobject gPowerManagerServiceObj;
 static sp<IPowerV1_0> gPowerHalV1_0_ = nullptr;
 static sp<IPowerV1_1> gPowerHalV1_1_ = nullptr;
 static sp<ILineagePowerV1_0> gLineagePowerHalV1_0_ = nullptr;
+static sp<ISehMiscPower> gSehMiscPower = nullptr;
 static bool gPowerHalExists = true;
 static bool gLineagePowerHalExists = true;
 static std::mutex gPowerHalMutex;
@@ -97,7 +100,10 @@ static bool checkAndClearExceptionFromCallback(JNIEnv* env, const char* methodNa
 // The caller must be holding gPowerHalMutex.
 static void connectPowerHalLocked() {
     if (gPowerHalExists && gPowerHalV1_0_ == nullptr) {
-        gPowerHalV1_0_ = IPowerV1_0::getService();
+	gSehMiscPower = ISehMiscPower::getService();
+        gPowerHalV1_0_ = IPowerV1_0::getService("miscpower");
+	if(gPowerHalV1_0_ == nullptr)
+	    gPowerHalV1_0_ = IPowerV1_0::getService();
         if (gPowerHalV1_0_ != nullptr) {
             ALOGI("Loaded power HAL 1.0 service");
             // Try cast to powerHAL V1_1
@@ -125,6 +131,12 @@ void connectLineagePowerHalLocked() {
             gLineagePowerHalExists = false;
         }
     }
+}
+
+sp<ISehMiscPower> getSehMiscPower() {
+    std::lock_guard<std::mutex> lock(gPowerHalMutex);
+    connectPowerHalLocked();
+    return gSehMiscPower;
 }
 
 // Retrieve a copy of PowerHAL V1_0
@@ -304,6 +316,14 @@ static void nativeSetInteractive(JNIEnv* /* env */, jclass /* clazz */, jboolean
             ALOGD("Excessive delay in setInteractive(%s) while turning screen %s",
                   enable ? "true" : "false", enable ? "on" : "off");
         }
+    }
+    sp<ISehMiscPower> sehMiscPower = getSehMiscPower();
+    if(sehMiscPower != nullptr) {
+        android::base::Timer t;
+        Return<void> ret = sehMiscPower->setInteractiveAsync(enable, 0);
+	if(!ret.isOk()) {
+		ALOGE("set interactive async() failed: seh misc setInteractiveAsync");
+	}
     }
 }
 

@@ -127,8 +127,10 @@ public class FingerprintService extends BiometricServiceBase {
             }
         }
     }
+    private FacolaView mFacola;
 
     private final class FingerprintAuthClient extends AuthenticationClientImpl {
+
         @Override
         protected boolean isFingerprint() {
             return true;
@@ -177,6 +179,36 @@ public class FingerprintService extends BiometricServiceBase {
 
             return super.handleFailedAttempt();
         }
+
+        @Override
+        public boolean onAcquired(int acquiredInfo, int vendorCode) {
+            boolean result = super.onAcquired(acquiredInfo, vendorCode);
+            android.util.Log.d("PHH-Enroll", "acquired ret " + result);
+            if(result) mFacola.hide();
+            return result;
+        }
+
+        @Override
+        public boolean onAuthenticated(BiometricAuthenticator.Identifier identifier,
+            boolean authenticated, ArrayList<Byte> token) {
+            boolean result = super.onAuthenticated(identifier, authenticated, token);
+            android.util.Log.d("PHH-Enroll", "auth-ed ret " + result);
+            if(result) mFacola.hide();
+            return result;
+        }
+
+
+        @Override
+        public int start() {
+            mFacola.show();
+            return super.start();
+        }
+
+        @Override
+        public int stop(boolean initiatedByClient) {
+            mFacola.hide();
+            return super.stop(initiatedByClient);
+        }
     }
 
     /**
@@ -188,7 +220,6 @@ public class FingerprintService extends BiometricServiceBase {
         /**
          * The following methods contain common code which is shared in biometrics/common.
          */
-
         @Override // Binder call
         public long preEnroll(IBinder token) {
             checkPermission(MANAGE_FINGERPRINT);
@@ -206,6 +237,7 @@ public class FingerprintService extends BiometricServiceBase {
                 final IFingerprintServiceReceiver receiver, final int flags,
                 final String opPackageName) {
             checkPermission(MANAGE_FINGERPRINT);
+            mFacola.show();
 
             final boolean restricted = isRestricted();
             final int groupId = userId; // default group for fingerprint enrollment
@@ -598,8 +630,14 @@ public class FingerprintService extends BiometricServiceBase {
                 final Fingerprint fingerprint =
                         new Fingerprint(getBiometricUtils().getUniqueName(getContext(), groupId),
                                 groupId, fingerId, deviceId);
-                FingerprintService.super.handleEnrollResult(fingerprint, remaining);
-                if (remaining == 0 && mHasFod) {
+                int remaining2 = remaining;
+                int overrideSamsung = android.os.SystemProperties.getInt("persist.sys.phh.samsung_fingerprint", -1);
+
+                String fp = android.os.SystemProperties.get("ro.vendor.build.fingerprint");
+                if(overrideSamsung == 1 || (overrideSamsung != 0 && fp != null && fp.startsWith("samsung/")))
+                    remaining2 = 100 - remaining2;
+                FingerprintService.super.handleEnrollResult(fingerprint, remaining2);
+                if (remaining2 == 0 && mHasFod) {
                     IFingerprintInscreen fodDaemon = getFingerprintInScreenDaemon();
                     if (fodDaemon != null) {
                         try {
@@ -664,6 +702,9 @@ public class FingerprintService extends BiometricServiceBase {
                     }
                 }
                 FingerprintService.super.handleError(deviceId, error, vendorCode);
+                if ( error == BiometricConstants.BIOMETRIC_ERROR_CANCELED) {
+                    mFacola.hide();
+                }
                 // TODO: this chunk of code should be common to all biometric services
                 if (error == BiometricConstants.BIOMETRIC_ERROR_HW_UNAVAILABLE) {
                     // If we get HW_UNAVAILABLE, try to connect again later...
@@ -806,7 +847,7 @@ public class FingerprintService extends BiometricServiceBase {
         mAlarmManager = context.getSystemService(AlarmManager.class);
         context.registerReceiver(mLockoutReceiver, new IntentFilter(getLockoutResetIntent()),
                 getLockoutBroadcastPermission(), null /* handler */);
-
+        mFacola = new FacolaView(context);
         PackageManager packageManager = context.getPackageManager();
         mHasFod = packageManager.hasSystemFeature(LineageContextConstants.Features.FOD);
     }
@@ -1057,6 +1098,7 @@ public class FingerprintService extends BiometricServiceBase {
             Slog.w(TAG, "startPreEnroll: no fingerprint HAL!");
             return 0;
         }
+        mFacola.show();
         try {
             return daemon.preEnroll();
         } catch (RemoteException e) {
@@ -1071,6 +1113,7 @@ public class FingerprintService extends BiometricServiceBase {
             Slog.w(TAG, "startPostEnroll: no fingerprint HAL!");
             return 0;
         }
+        mFacola.hide();
         try {
             return daemon.postEnroll();
         } catch (RemoteException e) {
