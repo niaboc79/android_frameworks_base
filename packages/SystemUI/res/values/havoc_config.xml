@@ -33,9 +33,7 @@
     <integer name="config_shift_interval">60</integer>
 
     <!-- The default tiles to display in QuickSettings -->
-    <string name="quick_settings_tiles_extra" translatable="false">
-        aod,adb_network,caffeine,compass,cpuinfo,fpsinfo,gaming,heads_up,hwkeys,livedisplay,music,navbar,reading_mode,reboot,screenrecord,screenshot,screenstabilization,smartpixels,sound,soundsearch,dataswitch,sync,usb_tether
-    </string>
+    <string name="quick_settings_tiles_extra" translatable="false">aod,adb_network,caffeine,compass,cpuinfo,fpsinfo,gaming,heads_up,hwkeys,livedisplay,lte,music,navbar,reading_mode,reboot,screenrecord,screenshot,screenstabilization,smartpixels,sound,soundsearch,dataswitch,sync,usb_tether</string>
 
     <!-- Color of the FOD view -->
     <color name="config_fodColor">#00ff00</color>
